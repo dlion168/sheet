@@ -24,7 +24,7 @@ class NonIntrusiveDataset(Dataset):
     def __init__(
         self,
         csv_path,
-        target_sample_rate,
+        target_sample_rate=None,
         model_input="wav",
         wav_only=False,
         use_mean_listener=False,
@@ -60,6 +60,11 @@ class NonIntrusiveDataset(Dataset):
         self.categorical = categorical
         self.categorical_step = categorical_step
         self.no_feat = no_feat
+        self.sr_to_idx = {
+            16000:0,
+            24000:1,
+            48000:2
+        }
 
         # set model input transform
         self.model_input = model_input
@@ -164,20 +169,22 @@ class NonIntrusiveDataset(Dataset):
         # fetch waveform. return cached item if exists
         if not self.no_feat:
             if self.allow_cache and len(self.wav_caches[hash_id]) != 0:
-                item["waveform"] = self.wav_caches[hash_id]
+                item["waveform"], item["sample_rate_idx"] = self.wav_caches[hash_id]
             else:
                 # read waveform
                 waveform, sample_rate = torchaudio.load(
                     item["wav_path"], channels_first=False
                 )  # waveform: [T, 1]
                 # resample if needed
-                if sample_rate != self.target_sample_rate:
+                item["sample_rate_idx"] = self.sr_to_idx[sample_rate]
+                if self.target_sample_rate is not None and sample_rate != self.target_sample_rate:
                     resampler_key = f"{sample_rate}-{self.target_sample_rate}"
                     if resampler_key not in self.resamplers:
                         self.resamplers[resampler_key] = torchaudio.transforms.Resample(
                             sample_rate, self.target_sample_rate, dtype=waveform.dtype
                         )
                     waveform = self.resamplers[resampler_key](waveform)
+                    item["sample_rate_idx"] = self.sr_to_idx[self.target_sample_rate]
 
                 waveform = waveform.squeeze(-1)
 
@@ -188,7 +195,7 @@ class NonIntrusiveDataset(Dataset):
 
                 item["waveform"] = waveform
                 if self.allow_cache:
-                    self.wav_caches[hash_id] = item["waveform"]
+                    self.wav_caches[hash_id] = item["waveform"], item["sample_rate_idx"]
 
         # additional feature extraction
         if not self.no_feat:
@@ -204,7 +211,6 @@ class NonIntrusiveDataset(Dataset):
                     item["mag_sgram"] = mag_sgram.mT  # [T, freq]
                     if self.allow_cache:
                         self.mag_sgram_caches[hash_id] = item["mag_sgram"]
-
         return item
 
     def calculate_avg_score(self):

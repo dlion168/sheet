@@ -5,7 +5,7 @@
 dataset_type: NonIntrusiveDataset
 collater_type: NonIntrusiveCollater
 trainer_type: NonIntrusiveEstimatorTrainer
-sampling_rate: 16000                # Sampling rate.
+sampling_rate: null                # Sampling rate.
 model_input: waveform               # choices: waveform, mag_sgram
 
 ###########################################################
@@ -17,13 +17,16 @@ model_params:
     s3prl_name: "wav2vec2"
     ssl_model_output_dim: 768
     ssl_model_layer_idx: -1
+    ssl_weighted_sum: True
 
+    activation: "PReLU"
     mean_net_dnn_dim: 64
     mean_net_output_type: "scalar"
     mean_net_range_clipping: True
 
     use_listener_modeling: False
     use_mean_listener: False
+    use_sample_rate_modeling: True
     
 ###########################################################
 #                      LOSS SETTING                       #
@@ -47,10 +50,10 @@ inference_mode: mean_net    # this is used for
 ###########################################################
 #                  DATA LOADER SETTING                    #
 ###########################################################
-train_batch_size: 16
+train_batch_size: 8
 test_batch_size: 1
 padding_mode: "repetitive"  # repetitive, zero_padding
-wav_only: True              # Reduce to average only even for the training data.
+wav_only: False             # Reduce to average only even for the training data.
                             # Set to True usually if no use listener modeling at all (ex. SSL-MOS)
 pin_memory: true            # Whether to pin memory in Pytorch DataLoader.
 num_workers: 0              # Number of workers in Pytorch DataLoader.
@@ -59,12 +62,12 @@ allow_cache: true           # Whether to allow cache in dataset. If true, it req
 ###########################################################
 #             OPTIMIZER & SCHEDULER SETTING               #
 ###########################################################
-optimizer_type: SGD
+optimizer_type: AdamW
 optimizer_params:
     lr: 1.0e-3
     # the following params come from
     # https://github.com/pytorch/vision/blob/c2ab0c59f42babf9ad01aa616cd8a901daac86dd/references/classification/train.py#L172-L173
-    momentum: 0.9
+    # momentum: 0.9
 grad_norm: 1.0              # Gradient norm.
 scheduler_type: null
 

@@ -79,6 +79,8 @@ class NonIntrusiveEstimatorTrainer(Trainer):
         }
         if "listener_idxs" in batch:
             inputs["listener_idxs"] = batch["listener_idxs"].to(self.device)
+        if "sample_rate_idxs" in batch:
+            inputs["sample_rate_idxs"] = batch["sample_rate_idxs"].to(self.device)
         if "domain_idxs" in batch:
             inputs["domain_idxs"] = batch["domain_idxs"].to(self.device)
         if "phoneme_idxs" in batch:
@@ -163,6 +165,8 @@ class NonIntrusiveEstimatorTrainer(Trainer):
                 self.device
             ),
         }
+        if "sample_rate_idxs" in batch:
+            inputs["sample_rate_idxs"] = batch["sample_rate_idxs"].to(self.device)
         if "domain_idxs" in batch:
             inputs["domain_idxs"] = batch["domain_idxs"].to(self.device)
         if "phoneme_idxs" in batch:

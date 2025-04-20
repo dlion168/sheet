@@ -7,19 +7,14 @@
 . ./cmd.sh || exit 1;
 
 # basic settings
-stage=1      # stage to start
-stop_stage=1 # stage to stop
+stage=2      # stage to start
+stop_stage=2 # stage to stop
 verbose=1      # verbosity level (lower is less info)
 n_gpus=1       # number of gpus in training
-n_jobs=16      # number of parallel jobs in feature extraction
+n_jobs=8      # number of parallel jobs in feature extraction
 seed=1337
 
 conf=conf/ssl-mos-wav2vec2.yaml
-
-# dataset configuration
-# db_root=/data/group1/z44476r/Corpora/somos  # change this to your dataset folder
-db_root=/bathrooms/ycevan/Audiomos2025/data/track3_obf/DATA/wav
-target_sampling_rate=16000 
 
 # training related setting
 tag=""     # tag for directory to save model
@@ -62,7 +57,7 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
         ${train} \
             --config "${conf}" \
             --train-csv-path "data/train.csv" \
-            --dev-csv-path "data/dev.csv" \
+            --dev-csv-path "data/train.csv" \
             --outdir "${expdir}" \
             --resume "${resume}" \
             --verbose "${verbose}" \
