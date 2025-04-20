@@ -17,7 +17,7 @@ seed=1337
 conf=conf/ssl-mos-wav2vec2.yaml
 
 # dataset configuration
-db_root=/data/group1/z44476r/Corpora/tencent/TencentCorups  # change this to your dataset folder
+db_root=/bathrooms/ycevan/sheet/egs/tencent/downloads/TencentCorups  # change this to your dataset folder
 target_sampling_rate=16000
 
 # training related setting

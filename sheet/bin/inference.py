@@ -13,6 +13,7 @@ import os
 import pickle
 import time
 from collections import defaultdict
+import gc
 
 import numpy as np
 import sheet
@@ -325,7 +326,13 @@ def main():
                 sys_name = batch["system_id"]
                 eval_sys_results["pred_mean_scores"][sys_name].append(pred_mean_scores)
                 eval_sys_results["true_mean_scores"][sys_name].append(true_mean_scores)
-
+                
+                del model_input
+                del inputs
+                del outputs
+                del batch
+                gc.collect()
+                
         total_inference_time = time.time() - start_time
         logging.info("Total inference time = {} secs.".format(total_inference_time))
         logging.info(

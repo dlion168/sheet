@@ -131,8 +131,7 @@ def main():
             and librosa.get_samplerate(wav_path) != args.target_sampling_rate
         ):
             # check whether soundfile has been imported
-            if "soundfile" not in sys.modules:
-                import soundfile as sf
+            import soundfile as sf
 
             resampled_wav_path = os.path.join(args.target_wavdir, sample_id)
             # resample and write if not exist yet

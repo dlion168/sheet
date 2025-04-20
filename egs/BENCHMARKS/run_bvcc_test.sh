@@ -7,17 +7,17 @@
 . ./cmd.sh || exit 1;
 
 # basic settings
-stage=-1       # stage to start
+stage=1       # stage to start
 stop_stage=100 # stage to stop
 verbose=1      # verbosity level (lower is less info)
 n_gpus=1       # number of gpus in training
-seed=1337
+seed=4337
 
 conf=conf/ssl-mos-wav2vec2.yaml
 meta_model_conf=conf/stacking_ridge.yaml
 
 # dataset configuration
-bvcc_db_root=/data/group1/z44476r/Corpora/BVCC/main/DATA    # change this to your dataset folder
+bvcc_db_root=/bathrooms/ycevan/VoiceMOS2022/main/DATA    # change this to your dataset folder
 datadir="../bvcc/data"
 domain_idx=0
 
@@ -27,8 +27,8 @@ tag=""     # tag for directory to save model
 datastore_path=
            
 # decoding related setting
-test_sets="dev test"
-checkpoint=""               # checkpoint path to be used for decoding
+test_sets="vcc2018"
+checkpoint="/bathrooms/ycevan/sheet/egs/BENCHMARKS/exp/ssl-mos-wav2vec2-4337/checkpoint-14300steps.pkl"               # checkpoint path to be used for decoding
                             # if not provided, the latest one will be used
                             # (e.g. <path>/<to>/checkpoint-400000steps.pkl)
 model_averaging="False"

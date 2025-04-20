@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import torchaudio
 from sheet.utils import read_csv
 from torch.utils.data import Dataset
+import csv  # 新增: 用於輸出 CSV
 
 MIN_REQUIRED_WAV_LENGTH = 1040
 
@@ -37,15 +38,15 @@ class NonIntrusiveDataset(Dataset):
         """Initialize dataset.
 
         Args:
-            csv path (str): path to the csv file
-            target_sample_rate (int): resample to this seample rate if there is a mismatch.
-            model_input (str): defalut is wav. is this is mag_sgram, extract magnitute sgram.
-            wav_only (bool): whether to return only wavs. Basically this means inference mode.
-            use_mean_listener (bool): whether to use mean listener. (only for datasets with listener labels)
-            use_phoneme (bool): whether to use phoneme. (only for UTMOS training)
-            symbols (str): symbols for phoneme. (only for UTMOS training)
+            csv_path (str): path to the csv file
+            target_sample_rate (int): resample to this sample rate if mismatch.
+            model_input (str): default is "wav". If "mag_sgram", then extract magnitude spectrogram.
+            wav_only (bool): whether to return only wavs (inference mode).
+            use_mean_listener (bool): whether to use mean listener. 
+            use_phoneme (bool): whether to use phoneme. 
+            symbols (str/list): symbols for phoneme. (if use_phoneme=True)
             categorical (bool): whether to use categorical output.
-            categorical_step (float): step for the categorical output. defauly is 1.0.
+            categorical_step (float): step for the categorical output. default is 1.0.
             no_feat (bool): Whether to skip loading features (waveforms, mag_sgrams ...)
             allow_cache (bool): Whether to allow cache of the loaded files.
 
@@ -103,12 +104,7 @@ class NonIntrusiveDataset(Dataset):
                 self.mag_sgram_caches += [() for _ in range(self.num_wavs)]
 
     def __len__(self):
-        """Return dataset length.
-
-        Returns:
-            int: The length of dataset.
-
-        """
+        """Return dataset length."""
         return len(self.metadata)
 
     def get_num_listeners(self):
@@ -131,7 +127,7 @@ class NonIntrusiveDataset(Dataset):
         for i in range(len(self.metadata)):
             item = self.metadata[i]
             sample_id = item["sample_id"]
-            if not sample_id in sample_ids:
+            if sample_id not in sample_ids:
                 sample_ids[sample_id] = count
                 count += 1
             self.metadata[i]["hash_id"] = sample_ids[sample_id]
@@ -141,7 +137,7 @@ class NonIntrusiveDataset(Dataset):
         item = self.metadata[idx]
 
         # handle score
-        item["score"] = float(item["score"])  # cast from str to int
+        item["score"] = float(item["score"])  # cast from str to float
         if self.categorical:
             # we assume the score always starts from 1
             item["score"] = int((item["score"] - 1) // self.categorical_step)
@@ -185,7 +181,7 @@ class NonIntrusiveDataset(Dataset):
 
                 waveform = waveform.squeeze(-1)
 
-                # always pad to a minumum length
+                # always pad to a minimum length
                 if waveform.shape[0] < MIN_REQUIRED_WAV_LENGTH:
                     to_pad = (MIN_REQUIRED_WAV_LENGTH - waveform.shape[0]) // 2
                     waveform = F.pad(waveform, (to_pad, to_pad), "constant", 0)
@@ -250,7 +246,7 @@ class NonIntrusiveDataset(Dataset):
         new_metadata = {}  # {sample_id: item}
         for item in self.metadata:
             sample_id = item["sample_id"]
-            if not sample_id in new_metadata:
+            if sample_id not in new_metadata:
                 new_metadata[sample_id] = {
                     k: v
                     for k, v in item.items()
@@ -262,7 +258,8 @@ class NonIntrusiveDataset(Dataset):
     # the following two functions are for writing results during inference
     def fill_answer(self, sample_id, score):
         for idx, item in enumerate(self.metadata):
-            if item["sample_id"] == sample_id: break
+            if item["sample_id"] == sample_id:
+                break
         self.metadata[idx]["answer"] = score
 
     def return_results(self):
@@ -270,6 +267,22 @@ class NonIntrusiveDataset(Dataset):
             {
                 k: item[k]
                 for k in ["wav_path", "system_id", "sample_id", "avg_score", "answer"]
+                if k in item
             }
             for item in self.metadata
         ]
+
+    # === 新增: 將當前 metadata 輸出成 csv ===
+    def save_to_csv(self, out_csv_path):
+        """Save current dataset metadata into a CSV file."""
+        if not self.metadata:
+            return  # metadata 為空就直接返回
+
+        # 以 metadata[0] 的 keys 為欄位名 (fieldnames)
+        fieldnames = list(self.metadata[0].keys())
+
+        with open(out_csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in self.metadata:
+                writer.writerow(row)

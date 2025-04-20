@@ -7,8 +7,8 @@
 . ./cmd.sh || exit 1;
 
 # basic settings
-stage=-1       # stage to start
-stop_stage=100 # stage to stop
+stage=1      # stage to start
+stop_stage=1 # stage to stop
 verbose=1      # verbosity level (lower is less info)
 n_gpus=1       # number of gpus in training
 n_jobs=16      # number of parallel jobs in feature extraction
@@ -18,7 +18,7 @@ conf=conf/ssl-mos-wav2vec2.yaml
 
 # dataset configuration
 # db_root=/data/group1/z44476r/Corpora/somos  # change this to your dataset folder
-db_root=downloads
+db_root=/bathrooms/ycevan/SOMOS
 target_sampling_rate=16000
 
 # training related setting

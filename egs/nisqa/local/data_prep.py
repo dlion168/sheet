@@ -128,8 +128,7 @@ def main():
             and librosa.get_samplerate(complete_wav_path) != args.target_sampling_rate
         ):
             # check whether soundfile has been imported
-            if "soundfile" not in sys.modules:
-                import soundfile as sf
+            import soundfile as sf
 
             resampled_wav_path = os.path.join(args.target_wavdir, wav_path)
             # resample and write if not exist yet
@@ -187,7 +186,7 @@ def main():
     if args.avg_score_only:
         fieldnames.append("avg_score")
     else:
-        fieldnames.append("score", "listener_id")
+        fieldnames.extend(["score", "listener_id"])
     if args.domain_idx is not None:
         fieldnames.append("domain_idx")
     with open(args.out, "w", newline="") as csvfile:

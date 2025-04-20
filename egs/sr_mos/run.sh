@@ -7,8 +7,8 @@
 . ./cmd.sh || exit 1;
 
 # basic settings
-stage=-1       # stage to start
-stop_stage=100 # stage to stop
+stage=1      # stage to start
+stop_stage=1 # stage to stop
 verbose=1      # verbosity level (lower is less info)
 n_gpus=1       # number of gpus in training
 n_jobs=16      # number of parallel jobs in feature extraction
@@ -17,8 +17,9 @@ seed=1337
 conf=conf/ssl-mos-wav2vec2.yaml
 
 # dataset configuration
-db_root=/bathrooms/ycevan/sheet/egs/tmhint-qi/downloads # change this to your dataset folder
-target_sampling_rate=16000
+# db_root=/data/group1/z44476r/Corpora/somos  # change this to your dataset folder
+db_root=/bathrooms/ycevan/Audiomos2025/data/track3_obf/DATA/wav
+target_sampling_rate=16000 
 
 # training related setting
 tag=""     # tag for directory to save model
@@ -26,7 +27,7 @@ resume=""  # checkpoint path to resume training
            # (e.g. <path>/<to>/checkpoint-10000steps.pkl)
            
 # decoding related setting
-test_sets="tmhintqi_dev tmhintqi_test"
+test_sets="dev test"
 checkpoint=""               # checkpoint path to be used for decoding
                             # if not provided, the latest one will be used
                             # (e.g. <path>/<to>/checkpoint-400000steps.pkl)
@@ -39,46 +40,7 @@ meta_model_checkpoint=""
 
 set -euo pipefail
 
-if [ ${stage} -le -1 ] && [ ${stop_stage} -ge -1 ]; then
-    echo "stage -1: Data and Pretrained Model Download"
-
-    local/data_download.sh ${db_root}
-fi
-
 mkdir -p "data"
-if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
-    echo "stage 0: Data preparation"
-
-    # parse original csv file to an unified format
-    local/data_prep.py \
-        --original-path "${db_root}/raw_data.csv" --wavdir "${db_root}/train" --setname "train" --out "data/tmhintqi_train.csv" --seed "${seed}"
-    local/data_prep.py \
-        --original-path "${db_root}/raw_data.csv" --wavdir "${db_root}/train" --setname "dev" --out "data/tmhintqi_dev.csv" --seed "${seed}"
-    local/data_prep.py \
-        --original-path "${db_root}/raw_data.csv" --wavdir "${db_root}/test" --setname "test" --out "data/tmhintqi_test.csv" --seed "${seed}"
-fi
-
-if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
-    echo "stage 1: Pre-trained model download"
-
-    utils/hf_download.py --repo_id "unilight/sheet-models" --outdir "exp/pt_ssl-mos-wav2vec2-2337" --filename "tmhint-qi/sslmos/2337/checkpoint-4300steps.pkl"
-    utils/hf_download.py --repo_id "unilight/sheet-models" --outdir "exp/pt_ssl-mos-wav2vec2-2337" --filename "tmhint-qi/sslmos/2337/config.yml"
-    mv "exp/pt_ssl-mos-wav2vec2-2337/tmhint-qi/sslmos/2337/checkpoint-4300steps.pkl" "exp/pt_ssl-mos-wav2vec2-2337/checkpoint-4300steps.pkl"
-    mv "exp/pt_ssl-mos-wav2vec2-2337/tmhint-qi/sslmos/2337/config.yml" "exp/pt_ssl-mos-wav2vec2-2337/config.yml"
-    rm -rf "exp/pt_ssl-mos-wav2vec2-2337/tmhint-qi"
-
-    utils/hf_download.py --repo_id "unilight/sheet-models" --outdir "exp/pt_ssl-mos-wav2vec2-3337" --filename "tmhint-qi/sslmos/3337/checkpoint-3100steps.pkl"
-    utils/hf_download.py --repo_id "unilight/sheet-models" --outdir "exp/pt_ssl-mos-wav2vec2-3337" --filename "tmhint-qi/sslmos/3337/config.yml"
-    mv "exp/pt_ssl-mos-wav2vec2-3337/tmhint-qi/sslmos/3337/checkpoint-3100steps.pkl" "exp/pt_ssl-mos-wav2vec2-3337/checkpoint-3100steps.pkl"
-    mv "exp/pt_ssl-mos-wav2vec2-3337/tmhint-qi/sslmos/3337/config.yml" "exp/pt_ssl-mos-wav2vec2-3337/config.yml"
-    rm -rf "exp/pt_ssl-mos-wav2vec2-3337/tmhint-qi"
-
-    utils/hf_download.py --repo_id "unilight/sheet-models" --outdir "exp/pt_ssl-mos-wav2vec2-4337" --filename "tmhint-qi/sslmos/4337/checkpoint-4300steps.pkl"
-    utils/hf_download.py --repo_id "unilight/sheet-models" --outdir "exp/pt_ssl-mos-wav2vec2-4337" --filename "tmhint-qi/sslmos/4337/config.yml"
-    mv "exp/pt_ssl-mos-wav2vec2-4337/tmhint-qi/sslmos/4337/checkpoint-4300steps.pkl" "exp/pt_ssl-mos-wav2vec2-4337/checkpoint-4300steps.pkl"
-    mv "exp/pt_ssl-mos-wav2vec2-4337/tmhint-qi/sslmos/4337/config.yml" "exp/pt_ssl-mos-wav2vec2-4337/config.yml"
-    rm -rf "exp/pt_ssl-mos-wav2vec2-4337/tmhint-qi"
-fi
 
 if [ -z ${tag} ]; then
     expname="$(basename ${conf%.*})-${seed}"
@@ -99,8 +61,8 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     ${cuda_cmd} --gpu "${n_gpus}" "${expdir}/train.log" \
         ${train} \
             --config "${conf}" \
-            --train-csv-path "data/tmhintqi_train.csv" \
-            --dev-csv-path "data/tmhintqi_dev.csv" \
+            --train-csv-path "data/train.csv" \
+            --dev-csv-path "data/dev.csv" \
             --outdir "${expdir}" \
             --resume "${resume}" \
             --verbose "${verbose}" \

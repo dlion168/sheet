@@ -3,7 +3,7 @@
 # Copyright 2024 Wen-Chin Huang (Nagoya University)
 #  MIT License (https://opensource.org/licenses/MIT)
 
-db_root=
+db_root=/bathrooms/ycevan/sheet/test_data
 datadir=data
 
 stage=-1       # stage to start

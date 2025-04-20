@@ -10,6 +10,7 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from sheet.modules.ldnet.modules import Projection
 
 
@@ -58,6 +59,9 @@ class SSLMOS(torch.nn.Module):
             self.ssl_model_layer_idx = ssl_model_layer_idx
         else:
             raise NotImplementedError
+        
+        self.attention_weight_matrix_W = nn.Linear(1, 256)  # Example dimensions
+        self.attention_weight_matrix_V = nn.Linear(256, 1)
 
         # default uses ffn type mean net
         self.mean_net_dnn = Projection(
@@ -103,6 +107,19 @@ class SSLMOS(torch.nn.Module):
             listener_ids has shape (batch)
         """
         waveform = inputs["waveform"]
+        
+        # Step 1: Compute attention scores S
+        # Add an extra dimension to the waveform for compatibility with Linear layers
+        inputs = waveform.unsqueeze(-1)  # Shape: (batch, time, 1)
+        S = torch.tanh(self.attention_weight_matrix_W(inputs))  # Shape: (batch, time, 256)
+
+        # Step 2: Compute attention weights α
+        S = self.attention_weight_matrix_V(S).squeeze(-1)  # Shape: (batch, time)
+        alpha = F.softmax(S, dim=1)  # Shape: (batch, time)
+
+        # Step 3: Compute weighted input C
+        C = alpha.unsqueeze(-1) * inputs  # Shape: (batch, time, 1)
+        
         waveform_lengths = inputs["waveform_lengths"]
 
         batch, time = waveform.shape
@@ -118,7 +135,7 @@ class SSLMOS(torch.nn.Module):
 
         # ssl model forward
         all_encoder_outputs, all_encoder_outputs_lens = self.ssl_model(
-            waveform, waveform_lengths
+            C, waveform_lengths
         )
         encoder_outputs = all_encoder_outputs[self.ssl_model_layer_idx]
         encoder_outputs_lens = all_encoder_outputs_lens[self.ssl_model_layer_idx]
@@ -216,24 +233,4 @@ class SSLMOS(torch.nn.Module):
         )
         encoder_outputs = all_encoder_outputs[self.ssl_model_layer_idx]
         return encoder_outputs
-
-class SSLMOS_wrap(torch.nn.Module):
-    def __init__(self, model):
-        super(SSLMOS_wrap, self).__init__()
-        self.model = model
-    def forward(self, waveform_tensor, wave_len_tensor):
-        """
-        waveform_tensor: shape [B, 1, 1, time] (the actual tensor to attribute)
-        wave_len_tensor: shape [B], used as additional_forward_args
-        """
-        waveform_tensor = torch.squeeze(waveform_tensor, (1,2))
-        # Build the dictionary that your model expects internally
-        inputs_dict = {
-            "waveform": waveform_tensor,
-            "waveform_lengths": wave_len_tensor
-        }
-        outputs = self.model.mean_net_inference(inputs_dict)
-        # shape of outputs["scores"] is [B]
-        # reshape => [B, 1] to appease Captum's expected 2D output
-        return outputs["scores"].unsqueeze(-1)
         
