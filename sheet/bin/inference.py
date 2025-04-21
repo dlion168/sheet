@@ -208,6 +208,8 @@ def main():
                         config["model_input"]: model_input,
                         config["model_input"] + "_lengths": model_lengths,
                     }
+                    if "sample_rate_idxs" in batch:
+                        inputs["sample_rate_idxs"] = batch["sample_rate_idxs"].to(device)
                     if "phoneme_idxs" in batch:
                         inputs["phoneme_idxs"] = (
                             batch["phoneme_idxs"].unsqueeze(0).to(device)
@@ -276,6 +278,7 @@ def main():
         start_time = time.time()
         with torch.no_grad(), tqdm(dataset, desc="[inference]") as pbar:
             for batch in pbar:
+                print(batch)
                 # set up model input
                 model_input = batch[config["model_input"]].unsqueeze(0).to(device)
                 model_lengths = model_input.new_tensor([model_input.size(1)]).long()
@@ -304,6 +307,12 @@ def main():
                 if "domain_idx" in batch:
                     inputs["domain_idxs"] = (
                         torch.tensor(batch["domain_idx"], dtype=torch.long)
+                        .unsqueeze(0)
+                        .to(device)
+                    )
+                if "sample_rate_idx" in batch:
+                    inputs["sample_rate_idxs"] = (
+                        torch.tensor(batch["sample_rate_idx"], dtype=torch.long)
                         .unsqueeze(0)
                         .to(device)
                     )
