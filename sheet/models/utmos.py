@@ -11,6 +11,7 @@ import math
 import torch
 import torch.nn as nn
 from sheet.modules.ldnet.modules import Projection
+from sheet.modules.weighted_sum import WeightedSumLayer
 from sheet.modules.utils import make_non_pad_mask
 
 
@@ -23,6 +24,8 @@ class UTMOS(torch.nn.Module):
         s3prl_name: str,
         ssl_model_output_dim: int,
         ssl_model_layer_idx: int,
+        ssl_weighted_sum: bool = True,
+        ssl_num_layers: int = 13,
         # phoneme and reference related
         use_phoneme: bool = True,
         phoneme_encoder_dim: int = 256,
@@ -36,6 +39,9 @@ class UTMOS(torch.nn.Module):
         num_listeners: int = None,
         listener_emb_dim: int = None,
         use_mean_listener: bool = True,
+        # sample rate related
+        use_sample_rate_modeling: bool = True,
+        sample_rate_emb_dim: int = 3,
         # decoder related
         use_decoder_rnn: bool = True,
         decoder_rnn_dim: int = 512,
@@ -43,6 +49,7 @@ class UTMOS(torch.nn.Module):
         decoder_activation: str = "ReLU",
         output_type: str = "scalar",
         range_clipping: bool = True,
+        num_domains: int = None
     ):
         super().__init__()  # this is needed! or else there will be an error.
         self.use_mean_listener = use_mean_listener
@@ -50,6 +57,7 @@ class UTMOS(torch.nn.Module):
 
         # define listener embedding
         self.use_listener_modeling = use_listener_modeling
+        self.use_sample_rate_modeling = use_sample_rate_modeling
 
         # define ssl model
         if ssl_module == "s3prl":
@@ -60,6 +68,11 @@ class UTMOS(torch.nn.Module):
             self.ssl_model_layer_idx = ssl_model_layer_idx
         else:
             raise NotImplementedError
+        
+        self.ssl_weighted_sum = ssl_weighted_sum
+        if ssl_weighted_sum:
+            self.weighted_sum = WeightedSumLayer(ssl_num_layers, normalize=True)
+        
         decoder_input_dim = ssl_model_output_dim
 
         # define phoneme encoder
@@ -99,6 +112,14 @@ class UTMOS(torch.nn.Module):
                 num_embeddings=num_listeners, embedding_dim=listener_emb_dim
             )
             decoder_input_dim += listener_emb_dim
+        
+        if use_sample_rate_modeling:
+            # 3 種取樣率對應 3 個 idx
+            self.sample_rate_embeddings = nn.Embedding(
+                num_embeddings=3,
+                embedding_dim=sample_rate_emb_dim,
+            )
+            decoder_input_dim += sample_rate_emb_dim
 
         # define decoder rnn
         self.use_decoder_rnn = use_decoder_rnn
@@ -115,10 +136,7 @@ class UTMOS(torch.nn.Module):
             decoder_dnn_input_dim = decoder_input_dim
 
         # define activation
-        if decoder_activation == "ReLU":
-            self.decoder_activation = nn.ReLU
-        else:
-            raise NotImplementedError
+        self.decoder_activation = eval(f"nn.{decoder_activation}")
 
         # there is always decoder dnn
         self.decoder_dnn = Projection(
@@ -167,6 +185,13 @@ class UTMOS(torch.nn.Module):
             # (batch, time, -1)
             # )  # (batch, time, feat_dim)
             to_concat.append(listener_embs)
+        
+        # sample rate embedding
+        if self.use_sample_rate_modeling:
+            sample_rate_ids = inputs["sample_rate_idxs"]
+            sr_embs = self.sample_rate_embeddings(sample_rate_ids)  # (batch, emb_dim)
+            sr_embs = sr_embs.unsqueeze(1).expand(-1, time, -1)
+            to_concat.append(sr_embs)
 
         decoder_inputs = torch.cat(to_concat, dim=2)
 
@@ -226,6 +251,13 @@ class UTMOS(torch.nn.Module):
             # (batch, time, -1)
             # )  # (batch, time, feat_dim)
             to_concat.append(listener_embs)
+        
+                # sample rate embedding
+        if self.use_sample_rate_modeling:
+            sample_rate_ids = inputs["sample_rate_idxs"]
+            sr_embs = self.sample_rate_embeddings(sample_rate_ids)  # (batch, emb_dim)
+            sr_embs = sr_embs.unsqueeze(1).expand(-1, time, -1)
+            to_concat.append(sr_embs)
 
         decoder_inputs = torch.cat(to_concat, dim=2)
 

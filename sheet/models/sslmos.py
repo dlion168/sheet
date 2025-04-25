@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 from sheet.modules.ldnet.modules import Projection
 from sheet.modules.weighted_sum import WeightedSumLayer
+from sheet.modules.utils import make_non_pad_mask
 class SSLMOS(torch.nn.Module):
     def __init__(
         self,
@@ -19,11 +20,13 @@ class SSLMOS(torch.nn.Module):
         model_input: str,
         # model related
         ssl_module: str = "s3prl",
-        s3prl_name: str = "wav2vec2",
-        ssl_model_output_dim: int = 768,
+        s3prl_name: str = "openai/whisper-large-v3",
+        ssl_model_output_dim: int = 1280,
         ssl_num_layers: int = 13,
         ssl_model_layer_idx: int = -1,
         ssl_weighted_sum: bool = True,
+        ssl_trainable: bool = True,
+        masked_mean_pooling: bool = False,
         activation: str = "PReLU",
         # mean net related
         mean_net_dnn_dim: int = 64,
@@ -50,6 +53,8 @@ class SSLMOS(torch.nn.Module):
         super().__init__()  # this is needed! or else there will be an error.
         self.use_mean_listener = use_mean_listener
         self.output_type = output_type
+        self.ssl_trainable = ssl_trainable
+        self.masked_mean_pooling = masked_mean_pooling
 
         # define listener embedding
         self.use_sample_rate_modeling = use_sample_rate_modeling
@@ -59,7 +64,9 @@ class SSLMOS(torch.nn.Module):
             from s3prl.nn import S3PRLUpstream
 
             if s3prl_name in S3PRLUpstream.available_names():
-                self.ssl_model = S3PRLUpstream(s3prl_name, refresh=False,path_or_url="/home/ycevan/.cache/s3prl/download/aa064e275fe0123a0e1b515f2341bbe4408368510d91d0a6816f2822a6e5acdd.wav2vec_small.pt")
+                self.ssl_model = S3PRLUpstream(s3prl_name, refresh=False)
+                if not self.ssl_trainable:
+                    self.ssl_model.eval()
             self.ssl_model_layer_idx = ssl_model_layer_idx
         else:
             raise NotImplementedError
@@ -136,9 +143,15 @@ class SSLMOS(torch.nn.Module):
         waveform_lengths = inputs["waveform_lengths"]
 
         # ssl model forward
-        all_encoder_outputs, all_encoder_outputs_lens = self.ssl_model(
-            waveform, waveform_lengths
-        )
+        if self.ssl_trainable:
+            all_encoder_outputs, all_encoder_outputs_lens = self.ssl_model(
+                waveform, waveform_lengths
+            )
+        else:
+            with torch.no_grad():
+                all_encoder_outputs, all_encoder_outputs_lens = self.ssl_model(
+                    waveform, waveform_lengths
+                )
         if not self.ssl_weighted_sum:
             encoder_outputs = all_encoder_outputs[self.ssl_model_layer_idx]
             encoder_outputs_lens = all_encoder_outputs_lens[self.ssl_model_layer_idx]
@@ -171,10 +184,10 @@ class SSLMOS(torch.nn.Module):
         # concatenate all features
         decoder_inputs = torch.cat(emb_list, dim=-1)
 
-        # masked mean pooling
-        # masks = make_non_pad_mask(encoder_outputs_lens)
-        # masks = masks.unsqueeze(-1).to(decoder_inputs.device) # [B, max_time, 1]
-        # decoder_inputs = torch.sum(decoder_inputs * masks, dim=1) / encoder_outputs_lens.unsqueeze(-1)
+        if self.masked_mean_pooling:
+            masks = make_non_pad_mask(encoder_outputs_lens)
+            masks = masks.unsqueeze(-1).to(decoder_inputs.device) # [B, max_time, 1]
+            decoder_inputs = torch.sum(decoder_inputs * masks, dim=1) / encoder_outputs_lens.unsqueeze(-1)
 
         # mean net
         mean_net_outputs = self.mean_net_dnn(

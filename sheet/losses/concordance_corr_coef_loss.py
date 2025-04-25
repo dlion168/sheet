@@ -13,7 +13,7 @@ class ConcordanceCorrCoefLoss(nn.Module):
         super().__init__()
         self.eps = eps
 
-    def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor) -> torch.Tensor:
+    def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor, device, lens=None) -> torch.Tensor:
         if pred_score.dim() > 1:
             pred_score = pred_score.squeeze(-1)
         if gt_score.dim() > 1:

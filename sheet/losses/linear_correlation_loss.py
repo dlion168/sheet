@@ -15,7 +15,7 @@ class LinearCorrelationLoss(nn.Module):
         super(LinearCorrelationLoss, self).__init__()
         self.eps = eps
 
-    def forward(self, pred_score, gt_score, lens=None, device=None):
+    def forward(self, pred_score, gt_score, device, lens=None):
         """
         Args:
             pred_score: Tensor of shape [B]

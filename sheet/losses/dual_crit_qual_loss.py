@@ -12,7 +12,7 @@ class DualCriterionQualityLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor) -> torch.Tensor:
+    def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor, device, lens=None) -> torch.Tensor:
         """
         Args:
             pred_score: Tensor of shape [B] or [B, 1]
@@ -20,6 +20,8 @@ class DualCriterionQualityLoss(nn.Module):
         Returns:
             total_loss: Scalar loss value
         """
+        if pred_score.dim() > 2:
+            pred_score = pred_score.mean(1)
         if pred_score.dim() > 1:
             pred_score = pred_score.squeeze(-1)
         if gt_score.dim() > 1:
@@ -35,8 +37,6 @@ class DualCriterionQualityLoss(nn.Module):
         # QAC: - delta_y * sign(delta_t)
         qac = -torch.mean(delta_y * torch.sign(delta_t))
 
-        # total loss: MSE(pred, gt) + QDC + QAC
-        mse = torch.mean((pred_score - gt_score) ** 2)
-        total_loss = mse + qdc + qac
+        total_loss = qdc + qac
 
         return total_loss

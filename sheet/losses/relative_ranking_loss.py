@@ -14,7 +14,7 @@ class RelativeRankingLoss(nn.Module):
     def __init__(self):
         super(RelativeRankingLoss, self).__init__()
 
-    def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor) -> torch.Tensor:
+    def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor, device, lens=None) -> torch.Tensor:
         """
         Args:
             pred_score: Tensor of shape (B,) - predicted quality scores
@@ -22,6 +22,8 @@ class RelativeRankingLoss(nn.Module):
         Returns:
             loss: scalar
         """
+        if pred_score.dim() > 2:
+            pred_score = pred_score.mean(dim=1).squeeze(1)
         assert pred_score.shape == gt_score.shape, "Shape mismatch"
 
         # Get indices for sorting the ground truth scores

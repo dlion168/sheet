@@ -125,7 +125,7 @@ class NonIntrusiveEstimatorTrainer(Trainer):
                 loss = criterion_dict["criterion"](
                     outputs["ld_scores"],
                     gt_scores,
-                    self.device,
+                    device = self.device,
                     lens = output_frame_lengths,
                 )
                 gen_loss += loss * criterion_dict["weight"]

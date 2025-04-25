@@ -22,7 +22,7 @@ class ContrastiveLoss(nn.Module):
         super(ContrastiveLoss, self).__init__()
         self.margin = margin
 
-    def forward(self, pred_score, gt_score, lens, device):
+    def forward(self, pred_score, gt_score, device, lens):
         if pred_score.dim() > 2:
             pred_score = pred_score.mean(dim=1).squeeze(1)
         # pred_score, gt_score: tensor, [batch_size]
