@@ -7,7 +7,7 @@
 . ./cmd.sh || exit 1;
 
 # basic settings
-stage=2      # stage to start
+stage=4      # stage to start
 stop_stage=4 # stage to stop (changed to include merging)
 # fold=0 # This will now be set in the loop
 verbose=1      # verbosity level (lower is less info)
@@ -15,7 +15,7 @@ n_gpus=1       # number of gpus in training
 n_jobs=8      # number of parallel jobs in feature extraction
 seed=1337
 
-conf=conf/ssl-mos-wav2vec2-dualcrit_freeze.yaml
+conf=conf/ssl-mos-wavlm-base-plus-dualcrit_freeze.yaml
 
 # training related setting
 tag=""     # tag for directory to save model
@@ -148,9 +148,9 @@ if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
 
     # Construct the pattern to find all results.csv files for THIS specific experiment
     # Use the calculated base_expname to ensure only relevant directories are matched
-    results_pattern="exp/${base_expname}-fold*/results/${test_sets}/results.csv"
+    results_pattern="*/${base_expname}-fold*/results/checkpoint-best/${test_sets}/results.csv"
     echo "Searching for results files matching: ${results_pattern}"
-    results_files=$(find exp/ -maxdepth 4 -path "${results_pattern}" -type f | sort)
+    results_files=$(find exp/ -path "${results_pattern}" -type f | sort)
 
     # Determine the output filename for the merged results
     # Use the base_expname which already includes the seed and tag/conf_base

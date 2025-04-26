@@ -31,6 +31,8 @@ from sheet.evaluation.plot import (
 from sheet.utils import read_csv
 from sheet.utils.model_io import model_average
 from sheet.utils.types import str2bool
+from s3prl.nn import S3PRLUpstream
+
 from tqdm import tqdm
 
 
@@ -189,10 +191,16 @@ def main():
         )
         xs = np.empty((len(dataset), len(checkpoint_paths)))
         for i, checkpoint_path in enumerate(checkpoint_paths):
-            # load model
-            model.load_state_dict(
-                torch.load(checkpoint_path, map_location="cpu")["model"]
-            )
+            if "ssl_trainable" in config["model_params"] and config["model_params"]["ssl_trainable"] == False:
+                state_dict =  torch.load(checkpoint_path, map_location="cpu")["model"]
+                ssl_state_dict = S3PRLUpstream(config["model_params"]["s3prl_name"], refresh=False).state_dict()
+                ssl_state_dict = {"ssl_model."+k:v for k,v in ssl_state_dict.items()}
+                state_dict.update(ssl_state_dict)
+                model.load_state_dict(state_dict)
+            else:
+                model.load_state_dict(
+                    torch.load(checkpoint_path, map_location="cpu")["model"]
+                )
             logging.info(f"Loaded model parameters from {checkpoint_path}.")
             model = model.eval().to(device)
 
@@ -261,13 +269,27 @@ def main():
         )
         if args.checkpoint != "":
             if os.path.islink(args.checkpoint):
-                model.load_state_dict(
-                    torch.load(os.readlink(args.checkpoint), map_location="cpu")["model"]
-                )
+                if "ssl_trainable" in config["model_params"] and config["model_params"]["ssl_trainable"] == False:
+                    state_dict =  torch.load(os.readlink(args.checkpoint), map_location="cpu")["model"]
+                    ssl_state_dict = S3PRLUpstream(config["model_params"]["s3prl_name"], refresh=False).state_dict()
+                    ssl_state_dict = {"ssl_model."+k:v for k,v in ssl_state_dict.items()}
+                    state_dict.update(ssl_state_dict)
+                    model.load_state_dict(state_dict)
+                else:
+                    model.load_state_dict(
+                        torch.load(os.readlink(args.checkpoint), map_location="cpu")["model"]
+                    )
             else:
-                model.load_state_dict(
-                    torch.load(args.checkpoint, map_location="cpu")["model"]
-                )
+                if "ssl_trainable" in config["model_params"] and config["model_params"]["ssl_trainable"] == False:
+                    state_dict =  torch.load(checkpoint_path, map_location="cpu")["model"]
+                    ssl_state_dict = S3PRLUpstream(config["model_params"]["s3prl_name"], refresh=False).state_dict()
+                    ssl_state_dict = {"ssl_model."+k:v for k,v in ssl_state_dict.items()}
+                    state_dict.update(ssl_state_dict)
+                    model.load_state_dict(state_dict)
+                else:
+                    model.load_state_dict(
+                        torch.load(checkpoint_path, map_location="cpu")["model"]
+                    )
             logging.info(f"Loaded model parameters from {args.checkpoint}.")
         else:
             model, checkpoint_paths = model_average(model, expdir)

@@ -7,14 +7,15 @@
 . ./cmd.sh || exit 1;
 
 # basic settings
-stage=2      # stage to start
-stop_stage=2 # stage to stop
+stage=3      # stage to start
+stop_stage=3 # stage to stop
+fold=0
 verbose=1      # verbosity level (lower is less info)
 n_gpus=1       # number of gpus in training
 n_jobs=8      # number of parallel jobs in feature extraction
 seed=1337
 
-conf=conf/ssl-mos-wav2vec2.yaml
+conf=conf/ssl-mos-whisper.yaml
 
 # training related setting
 tag=""     # tag for directory to save model
@@ -22,7 +23,7 @@ resume=""  # checkpoint path to resume training
            # (e.g. <path>/<to>/checkpoint-10000steps.pkl)
            
 # decoding related setting
-test_sets="dev test"
+test_sets="dev"
 checkpoint=""               # checkpoint path to be used for decoding
                             # if not provided, the latest one will be used
                             # (e.g. <path>/<to>/checkpoint-400000steps.pkl)
@@ -56,8 +57,8 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     ${cuda_cmd} --gpu "${n_gpus}" "${expdir}/train.log" \
         ${train} \
             --config "${conf}" \
-            --train-csv-path "data/train.csv" \
-            --dev-csv-path "data/train.csv" \
+            --train-csv-path "data/fold$fold/train.csv" \
+            --dev-csv-path "data/fold$fold/dev.csv" \
             --outdir "${expdir}" \
             --resume "${resume}" \
             --verbose "${verbose}" \
@@ -86,7 +87,7 @@ if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
         ${cuda_cmd} --gpu "${n_gpus}" "${outdir}/${name}/inference.log" \
             inference.py \
                 --config "${expdir}/config.yml" \
-                --csv-path "data/${name}.csv" \
+                --csv-path "data/fold$fold/${name}.csv" \
                 --checkpoint "${checkpoint}" \
                 --outdir "${outdir}/${name}" \
                 --model-averaging "${model_averaging}" \

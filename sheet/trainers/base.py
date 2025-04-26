@@ -13,7 +13,7 @@ import torch
 from sheet.utils.model_io import freeze_modules
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-
+import re
 
 class Trainer(object):
     """Customized trainer module."""
@@ -105,6 +105,12 @@ class Trainer(object):
             state_dict["model"] = self.model.module.state_dict()
         else:
             state_dict["model"] = self.model.state_dict()
+        
+        if hasattr(self.model, "ssl_trainable") and not self.model.ssl_trainable:
+            state_dict["model"] = {
+                k: v for k, v in state_dict["model"].items() 
+                if not re.match(r'ssl_model.*', k)
+            }
 
         if not os.path.exists(os.path.dirname(checkpoint_path)):
             os.makedirs(os.path.dirname(checkpoint_path))
